@@ -8,16 +8,22 @@ import {
   Typography,
   Paper,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { useMeeting } from '../context/MeetingContext';
-import { v4 as uuidv4 } from 'uuid';
+import { generateMeetingId, generateAccountId, generatePasscode } from '../utils/ids';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { setMeeting, setCurrentUser } = useMeeting();
+  const { setMeeting, setCurrentUser, settings, updateSettings } = useMeeting();
   const [meetingId, setMeetingId] = useState('');
   const [passcode, setPasscode] = useState('');
   const [name, setName] = useState('');
+  const [showMeetingInfo, setShowMeetingInfo] = useState(false);
+  const [newMeetingInfo, setNewMeetingInfo] = useState<{ id: string; passcode: string } | null>(null);
 
   const handleNewMeeting = async () => {
     if (!name) {
@@ -25,9 +31,11 @@ const Home: React.FC = () => {
       return;
     }
 
-    const newMeetingId = uuidv4();
+    const newMeetingId = generateMeetingId();
+    const accountId = generateAccountId();
+    const meetingPasscode = passcode || generatePasscode(); // Use provided passcode or generate one
     const newUser = {
-      id: uuidv4(),
+      id: accountId,
       name,
       isHost: true,
       isMuted: false,
@@ -35,13 +43,16 @@ const Home: React.FC = () => {
     };
 
     setCurrentUser(newUser);
+    updateSettings({ accountId });
     setMeeting({
       id: newMeetingId,
+      passcode: meetingPasscode,
       participants: [newUser],
       createdAt: new Date(),
     });
 
-    navigate(`/meeting/${newMeetingId}`);
+    setNewMeetingInfo({ id: newMeetingId, passcode: meetingPasscode });
+    setShowMeetingInfo(true);
   };
 
   const handleJoinMeeting = () => {
@@ -50,8 +61,9 @@ const Home: React.FC = () => {
       return;
     }
 
+    const accountId = generateAccountId();
     const newUser = {
-      id: uuidv4(),
+      id: accountId,
       name,
       isHost: false,
       isMuted: false,
@@ -59,6 +71,7 @@ const Home: React.FC = () => {
     };
 
     setCurrentUser(newUser);
+    updateSettings({ accountId });
     setMeeting({
       id: meetingId,
       passcode,
@@ -67,6 +80,12 @@ const Home: React.FC = () => {
     });
 
     navigate(`/meeting/${meetingId}`);
+  };
+
+  const handleJoinNewMeeting = () => {
+    if (newMeetingInfo) {
+      navigate(`/meeting/${newMeetingInfo.id}`);
+    }
   };
 
   return (
@@ -131,6 +150,36 @@ const Home: React.FC = () => {
           </Grid>
         </Grid>
       </Paper>
+
+      <Dialog 
+        open={showMeetingInfo} 
+        onClose={() => setShowMeetingInfo(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Meeting Information</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Share these details with others to join your meeting:
+            </Typography>
+            <Typography variant="body1" sx={{ mt: 2, fontWeight: 'bold' }}>
+              Meeting ID: {newMeetingInfo?.id}
+            </Typography>
+            <Typography variant="body1" sx={{ mt: 1, fontWeight: 'bold' }}>
+              Passcode: {newMeetingInfo?.passcode}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowMeetingInfo(false)} color="inherit">
+            Close
+          </Button>
+          <Button onClick={handleJoinNewMeeting} variant="contained" color="primary">
+            Join Meeting
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
